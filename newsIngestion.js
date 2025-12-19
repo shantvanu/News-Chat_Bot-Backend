@@ -360,6 +360,7 @@ export async function ingestNewsArticles() {
   }
 
   log("Starting news article ingestion...");
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   for (let i = 0; i < sampleArticles.length; i++) {
     const articleData = sampleArticles[i];
@@ -376,19 +377,29 @@ export async function ingestNewsArticles() {
 
     for (let j = 0; j < chunks.length; j++) {
       const chunkContent = chunks[j];
-      // log(`  - Generating embedding for chunk ${j + 1}/${chunks.length}`);
-      const embedding = await generateEmbedding(chunkContent);
 
-      chunkData.push({
-        articleId: article.id,
-        content: chunkContent,
-        chunkIndex: j,
-        embedding: embedding,
-        article: article
-      });
+      try {
+        const embedding = await generateEmbedding(chunkContent);
+        chunkData.push({
+          articleId: article.id,
+          content: chunkContent,
+          chunkIndex: j,
+          embedding: embedding,
+          article: article
+        });
+
+        // Add a 4.5s delay to stay within 15 requests per minute limit
+        if (process.env.NODE_ENV === "production") {
+          await delay(4500);
+        }
+      } catch (error) {
+        log(`  ❌ Failed to embed chunk ${j + 1}: ${error.message}`);
+      }
     }
 
-    await vectorStore.addChunks(chunkData);
+    if (chunkData.length > 0) {
+      await vectorStore.addChunks(chunkData);
+    }
   }
 
   log(`Ingested ${sampleArticles.length} articles`);
