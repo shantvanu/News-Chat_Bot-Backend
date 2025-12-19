@@ -1,7 +1,6 @@
 import "dotenv/config";
 import express from "express";
 import { registerRoutes } from "./routes.js";
-import { serveStatic } from "./static.js";
 import { createServer } from "http";
 
 const app = express();
@@ -71,16 +70,9 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (process.env.NODE_ENV === "production") {
-    log("Running in production mode, serving static files");
-    serveStatic(app);
-  } else {
-    log("Running in development mode, setting up Vite middleware");
-    const { setupVite } = await import("./vite.js");
-    await setupVite(app, httpServer);
+  // No static serving in standalone API mode
+  if (process.env.NODE_ENV !== "production") {
+    log("Running in development mode, you can connect the frontend repository to this API.");
   }
 
   // Initialize news ingestion
